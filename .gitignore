@@ -1,6 +1,9 @@
 # Project specification (internal planning document)
 github_issue_analyzer.md
 
+# Claude Code
+.claude/
+
 # Environment variables
 .env
 .env.local
