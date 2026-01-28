@@ -94,3 +94,18 @@ TOPIC_KEYWORDS = {
     "data": ["data-science", "analytics", "visualization", "pandas"],
     "security": ["security", "authentication", "encryption"]
 }
+
+# =============================================================================
+# Caching Settings
+# =============================================================================
+
+CACHE_DIR = ".cache"                    # Directory to store cache files
+GITHUB_CACHE_TTL_MINUTES = 15           # GitHub results expire after 15 minutes
+LLM_CACHE_TTL_HOURS = 24                # LLM analysis expires after 24 hours
+
+# =============================================================================
+# Data Storage Settings
+# =============================================================================
+
+DATA_DIR = ".data"                      # Directory for persistent user data
+                                        # Contains: favorites.json, history.json

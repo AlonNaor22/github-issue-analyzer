@@ -8,8 +8,8 @@ Takes Claude's analysis and calculates a match score based on:
 - Issue clarity
 """
 
-from dataclasses import dataclass
-from typing import List, Tuple
+from dataclasses import dataclass, field
+from typing import List, Tuple, Optional
 
 from .config import (
     DIFFICULTY_MATCH_WEIGHT,
@@ -22,12 +22,30 @@ from .analyzer import IssueAnalysis
 
 
 @dataclass
+class ScoreComponent:
+    """
+    A single component of the overall match score.
+
+    This provides transparency into how each factor contributes to the final score.
+    """
+    name: str                    # e.g., "difficulty", "time"
+    score: float                 # 0-1 score for this component
+    weight: float                # How much this contributes to total (e.g., 0.40)
+    weighted_score: float        # score * weight
+    confidence: str              # high/medium/low (from LLM or heuristic)
+    reasoning: str               # Why this score was given
+    match_description: str       # Human-readable match quality
+
+
+@dataclass
 class ScoredIssue:
     """An issue with its analysis and calculated match score."""
     issue: IssueData
     analysis: IssueAnalysis
-    score: float              # Overall score (0-1)
-    score_breakdown: dict     # Individual component scores
+    score: float                           # Overall score (0-1)
+    score_breakdown: dict                  # Legacy: simple scores dict
+    score_components: List[ScoreComponent] # New: detailed breakdown
+    overall_confidence: str                # Combined confidence level
 
 
 class IssueScorer:
@@ -124,6 +142,37 @@ class IssueScorer:
         """
         return max(0, min(clarity, 10)) / 10.0
 
+    def _get_match_description(self, score: float, component: str) -> str:
+        """Generate human-readable match description."""
+        if score >= 0.9:
+            return "Excellent match"
+        elif score >= 0.7:
+            return "Good match"
+        elif score >= 0.5:
+            return "Partial match"
+        elif score >= 0.3:
+            return "Weak match"
+        else:
+            return "Poor match"
+
+    def _calculate_overall_confidence(self, components: List[ScoreComponent]) -> str:
+        """
+        Calculate overall confidence from component confidences.
+
+        Logic:
+        - If any component has LOW confidence, overall is at most MEDIUM
+        - If all have HIGH confidence, overall is HIGH
+        - Otherwise MEDIUM
+        """
+        confidences = [c.confidence.lower() for c in components]
+
+        if "low" in confidences:
+            return "low"
+        elif all(c == "high" for c in confidences):
+            return "high"
+        else:
+            return "medium"
+
     def score_issue(
         self,
         issue: IssueData,
@@ -135,32 +184,138 @@ class IssueScorer:
         """
         Calculate overall match score for an issue.
 
-        Returns a ScoredIssue with the total score and breakdown.
+        Returns a ScoredIssue with the total score, breakdown, and detailed components.
         """
 
-        # Calculate individual scores
+        components = []
+
+        # =====================================================================
+        # DIFFICULTY COMPONENT
+        # =====================================================================
         difficulty_score = self.calculate_difficulty_score(
             analysis.difficulty,
             user_skill
         )
 
+        # Generate reasoning for difficulty match
+        if difficulty_score == 1.0:
+            diff_reasoning = f"Perfect match: issue is {analysis.difficulty}, you selected {user_skill}"
+        elif difficulty_score >= 0.6:
+            diff_reasoning = f"Close match: issue is {analysis.difficulty}, you selected {user_skill}"
+        else:
+            diff_reasoning = f"Mismatch: issue is {analysis.difficulty}, but you selected {user_skill}"
+
+        # Get confidence from LLM analysis (with fallback)
+        diff_confidence = getattr(analysis, 'difficulty_confidence', 'medium') or 'medium'
+
+        components.append(ScoreComponent(
+            name="Difficulty Match",
+            score=difficulty_score,
+            weight=DIFFICULTY_MATCH_WEIGHT,
+            weighted_score=difficulty_score * DIFFICULTY_MATCH_WEIGHT,
+            confidence=diff_confidence,
+            reasoning=diff_reasoning,
+            match_description=self._get_match_description(difficulty_score, "difficulty")
+        ))
+
+        # =====================================================================
+        # TIME COMPONENT
+        # =====================================================================
         time_score = self.calculate_time_score(
             analysis.estimated_time,
             user_time
         )
 
+        # Generate reasoning for time match
+        time_display = analysis.estimated_time.replace("_", " ")
+        user_time_display = user_time.replace("_", " ")
+
+        if time_score == 1.0:
+            time_reasoning = f"Perfect match: estimated {time_display}, you have {user_time_display}"
+        elif time_score >= 0.7:
+            time_reasoning = f"Close match: estimated {time_display}, you have {user_time_display}"
+        else:
+            time_reasoning = f"Time mismatch: estimated {time_display}, but you have {user_time_display}"
+
+        # Get confidence from LLM analysis (with fallback)
+        time_confidence = getattr(analysis, 'time_confidence', 'medium') or 'medium'
+
+        components.append(ScoreComponent(
+            name="Time Match",
+            score=time_score,
+            weight=TIME_MATCH_WEIGHT,
+            weighted_score=time_score * TIME_MATCH_WEIGHT,
+            confidence=time_confidence,
+            reasoning=time_reasoning,
+            match_description=self._get_match_description(time_score, "time")
+        ))
+
+        # =====================================================================
+        # REPO HEALTH COMPONENT
+        # =====================================================================
         health_score = self.calculate_health_score(repo_health)
 
+        # Generate reasoning for health
+        if repo_health:
+            health_parts = []
+            if repo_health.days_since_update < 30:
+                health_parts.append("very active")
+            elif repo_health.days_since_update < 90:
+                health_parts.append("recently updated")
+            else:
+                health_parts.append(f"last updated {repo_health.days_since_update} days ago")
+
+            if repo_health.has_contributing_guide:
+                health_parts.append("has CONTRIBUTING.md")
+
+            health_reasoning = "Repository: " + ", ".join(health_parts)
+            health_confidence = "high"  # We have actual data
+        else:
+            health_reasoning = "Repository health not checked (using default score)"
+            health_confidence = "low"
+
+        components.append(ScoreComponent(
+            name="Repo Health",
+            score=health_score,
+            weight=REPO_HEALTH_WEIGHT,
+            weighted_score=health_score * REPO_HEALTH_WEIGHT,
+            confidence=health_confidence,
+            reasoning=health_reasoning,
+            match_description=self._get_match_description(health_score, "health")
+        ))
+
+        # =====================================================================
+        # CLARITY COMPONENT
+        # =====================================================================
         clarity_score = self.calculate_clarity_score(analysis.clarity_score)
 
-        # Weighted total
-        total_score = (
-            difficulty_score * DIFFICULTY_MATCH_WEIGHT +
-            time_score * TIME_MATCH_WEIGHT +
-            health_score * REPO_HEALTH_WEIGHT +
-            clarity_score * ISSUE_CLARITY_WEIGHT
-        )
+        # Get reasoning from LLM analysis (with fallback)
+        clarity_reasoning = getattr(analysis, 'clarity_reasoning', '') or ''
+        if not clarity_reasoning:
+            if analysis.clarity_score >= 8:
+                clarity_reasoning = "Well-written issue with clear requirements"
+            elif analysis.clarity_score >= 5:
+                clarity_reasoning = "Moderately clear, some details may need clarification"
+            else:
+                clarity_reasoning = "Unclear issue, may require discussion with maintainers"
 
+        components.append(ScoreComponent(
+            name="Issue Clarity",
+            score=clarity_score,
+            weight=ISSUE_CLARITY_WEIGHT,
+            weighted_score=clarity_score * ISSUE_CLARITY_WEIGHT,
+            confidence="high",  # Clarity is directly assessed
+            reasoning=clarity_reasoning,
+            match_description=self._get_match_description(clarity_score, "clarity")
+        ))
+
+        # =====================================================================
+        # CALCULATE TOTALS
+        # =====================================================================
+        total_score = sum(c.weighted_score for c in components)
+        overall_confidence = self._calculate_overall_confidence(components)
+
+        # Legacy breakdown dict for backwards compatibility
         breakdown = {
             "difficulty": difficulty_score,
             "time": time_score,
@@ -172,7 +327,9 @@ class IssueScorer:
             issue=issue,
             analysis=analysis,
             score=total_score,
-            score_breakdown=breakdown
+            score_breakdown=breakdown,
+            score_components=components,
+            overall_confidence=overall_confidence
         )
 
     def rank_issues(

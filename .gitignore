@@ -53,6 +53,9 @@ htmlcov/
 .cache/
 *.cache
 
+# User data (favorites, history)
+.data/
+
 # OS
 .DS_Store
 Thumbs.db
