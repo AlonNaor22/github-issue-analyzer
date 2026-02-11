@@ -22,6 +22,7 @@ from src.cache import CacheManager
 from src.favorites import FavoritesManager
 from src.label_mappings import LabelMappingManager
 from src.history import HistoryManager, IssueStatus
+from src.exporter import export_results
 from src.config import ISSUES_TO_ANALYZE
 
 # Load environment variables
@@ -79,7 +80,8 @@ def run_analysis(
     use_cache: bool = True,
     show_confidence: bool = True,
     hide_seen: bool = False,
-    track_history: bool = True
+    track_history: bool = True,
+    export_path: str = None
 ):
     """
     Run the full analysis pipeline.
@@ -99,6 +101,7 @@ def run_analysis(
         show_confidence: Whether to show confidence breakdown (default True)
         hide_seen: Whether to filter out previously viewed issues
         track_history: Whether to record viewed issues in history
+        export_path: If provided, save full results to this file (.json or .md)
     """
 
     # Initialize cache manager
@@ -211,6 +214,13 @@ def run_analysis(
         show_confidence=show_confidence,
         history=history
     )
+
+    # -------------------------------------------------------------------------
+    # Step 5: Export Results (if requested)
+    # -------------------------------------------------------------------------
+    if export_path:
+        export_results(ranked, prefs, export_path)
+        console.print(f"\n[green]Results exported to {export_path}[/green]")
 
     # Offer to show more if available
     if len(ranked) > max_results:
@@ -344,7 +354,8 @@ def find(
     use_cache: bool = typer.Option(True, "--cache/--no-cache", help="Use caching to reduce API calls"),
     show_confidence: bool = typer.Option(True, "--confidence/--no-confidence", help="Show confidence score breakdown"),
     hide_seen: bool = typer.Option(False, "--hide-seen", "-H", help="Hide issues you've already viewed"),
-    track_history: bool = typer.Option(True, "--track/--no-track", help="Track viewed issues in history")
+    track_history: bool = typer.Option(True, "--track/--no-track", help="Track viewed issues in history"),
+    export: str = typer.Option(None, "--export", "-e", help="Export results to file (.json or .md)")
 ):
     """
     Find GitHub issues matching your preferences.
@@ -361,6 +372,10 @@ def find(
     - By default, viewed issues are recorded in history
     - Use --hide-seen to filter out previously viewed issues
     - Use --no-track to disable history recording
+
+    Export:
+    - Use --export results.json to save as JSON
+    - Use --export results.md to save as Markdown
     """
 
     if interactive or not all([topic, language, skill, time]):
@@ -381,7 +396,8 @@ def find(
         use_cache=use_cache,
         show_confidence=show_confidence,
         hide_seen=hide_seen,
-        track_history=track_history
+        track_history=track_history,
+        export_path=export
     )
 
 
