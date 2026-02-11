@@ -16,6 +16,7 @@ An AI-powered CLI tool that helps developers find open-source contribution oppor
 - **Confidence Scores**: See detailed breakdowns of why issues match your criteria
 - **Custom Label Mappings**: Configure repository-specific label interpretations
 - **History Tracking**: Track viewed issues and filter out previously seen results
+- **Export Results**: Save full analysis results to JSON or Markdown files
 
 ## How It Works
 
@@ -117,6 +118,7 @@ Options:
   --confidence / --no-confidence  Show confidence score breakdown [default: confidence]
   -H, --hide-seen          Hide issues you've already viewed
   --track / --no-track     Track viewed issues in history [default: track]
+  -e, --export TEXT        Export results to file (.json or .md)
 ```
 
 ### Check Setup
@@ -233,6 +235,29 @@ python main.py history clear
 
 Status options: `viewed`, `interested`, `attempted`, `completed`, `abandoned`, `skipped`
 
+### Export Results
+
+Save full analysis results to a file for later reference:
+
+```bash
+# Export as JSON (machine-readable, includes all scores and analysis data)
+python main.py find --export results.json
+
+# Export as Markdown (human-readable report with tables)
+python main.py find --export results.md
+
+# Combine with other options
+python main.py find -t ai -l python -s beginner -T half_day --no-interactive -e my-results.json
+```
+
+The export includes **all** ranked results with:
+- Match scores and confidence levels
+- Full AI analysis (difficulty, time estimate, summary, recommendations)
+- Score breakdown per component (difficulty match, time match, repo health, clarity)
+- Issue metadata (repo, stars, labels, links)
+
+The format is auto-detected from the file extension (`.json` or `.md`).
+
 ## Example Output
 
 ```
@@ -288,7 +313,8 @@ github-issue-analyzer/
 │   ├── cache.py            # Caching layer
 │   ├── favorites.py        # Favorites management
 │   ├── history.py          # History tracking
-│   └── label_mappings.py   # Custom label configurations
+│   ├── label_mappings.py   # Custom label configurations
+│   └── exporter.py         # Export results to JSON/Markdown
 ├── requirements.txt
 ├── .env.example
 └── README.md
@@ -321,7 +347,7 @@ Key parameters can be adjusted in `src/config.py`:
 
 | Command | Description |
 |---------|-------------|
-| `find` | Search for matching issues |
+| `find` | Search for matching issues (supports `--export`) |
 | `check-setup` | Verify API configuration |
 | `cache stats` | View cache statistics |
 | `cache clear` | Clear all caches |
