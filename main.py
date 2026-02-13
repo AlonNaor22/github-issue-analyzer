@@ -36,34 +36,95 @@ app = typer.Typer(
 console = Console()
 
 
+def _numbered_prompt(question: str, options: list[tuple[str, str]], default: int = 1) -> str:
+    """
+    Show numbered options and return the selected value.
+
+    Args:
+        question: The question to display
+        options: List of (value, display_label) tuples
+        default: Default option number (1-based)
+
+    Returns:
+        The value string of the selected option
+    """
+    console.print(f"[bold]{question}[/bold]")
+    for i, (value, label) in enumerate(options, 1):
+        marker = "[green]*[/green]" if i == default else " "
+        console.print(f"  {marker} [cyan]{i}[/cyan]) {label}")
+
+    while True:
+        choice = Prompt.ask(
+            f"[dim]Enter number (1-{len(options)})[/dim]",
+            default=str(default)
+        )
+        try:
+            idx = int(choice)
+            if 1 <= idx <= len(options):
+                return options[idx - 1][0]
+        except ValueError:
+            pass
+        console.print(f"[red]Please enter a number between 1 and {len(options)}[/red]")
+
+
 def get_user_preferences_interactive() -> dict:
     """Gather user preferences through interactive prompts."""
 
     console.print("\n[bold blue]GitHub Issue Analyzer[/bold blue]")
     console.print("[dim]Find open-source issues matching your profile[/dim]\n")
 
-    topic = Prompt.ask(
-        "[bold]What topic interests you?[/bold]",
-        choices=["ai", "web", "backend", "devops", "mobile", "data", "security", "any"],
-        default="any"
+    topic = _numbered_prompt(
+        "What topic interests you?",
+        [
+            ("ai", "AI / Machine Learning"),
+            ("web", "Web / Frontend"),
+            ("backend", "Backend / APIs"),
+            ("devops", "DevOps / Infrastructure"),
+            ("mobile", "Mobile Development"),
+            ("data", "Data Science / Analytics"),
+            ("security", "Security"),
+            ("any", "Any topic"),
+        ],
+        default=8
     )
 
-    language = Prompt.ask(
-        "[bold]Preferred programming language?[/bold]",
-        choices=["python", "javascript", "typescript", "rust", "go", "java", "any"],
-        default="python"
+    console.print()
+    language = _numbered_prompt(
+        "Preferred programming language?",
+        [
+            ("python", "Python"),
+            ("javascript", "JavaScript"),
+            ("typescript", "TypeScript"),
+            ("rust", "Rust"),
+            ("go", "Go"),
+            ("java", "Java"),
+            ("any", "Any language"),
+        ],
+        default=1
     )
 
-    skill = Prompt.ask(
-        "[bold]Your skill level?[/bold]",
-        choices=["beginner", "intermediate", "advanced"],
-        default="beginner"
+    console.print()
+    skill = _numbered_prompt(
+        "Your skill level?",
+        [
+            ("beginner", "Beginner"),
+            ("intermediate", "Intermediate"),
+            ("advanced", "Advanced"),
+        ],
+        default=1
     )
 
-    time = Prompt.ask(
-        "[bold]How much time do you have?[/bold]",
-        choices=["quick_win", "half_day", "full_day", "weekend", "deep_dive"],
-        default="half_day"
+    console.print()
+    time = _numbered_prompt(
+        "How much time do you have?",
+        [
+            ("quick_win", "Quick win (< 2 hours)"),
+            ("half_day", "Half day (2-4 hours)"),
+            ("full_day", "Full day (4-8 hours)"),
+            ("weekend", "Weekend (1-3 days)"),
+            ("deep_dive", "Deep dive (1+ week)"),
+        ],
+        default=2
     )
 
     return {
