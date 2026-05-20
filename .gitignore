@@ -56,6 +56,9 @@ htmlcov/
 # User data (favorites, history)
 .data/
 
+# Claude Code temporary files
+tmpclaude-*
+
 # OS
 .DS_Store
 Thumbs.db

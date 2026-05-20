@@ -367,6 +367,15 @@ Key parameters can be adjusted in `src/config.py`:
 | `label-import` | Import built-in as custom |
 | `label-delete` | Delete custom mapping |
 
+## Running Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest tests/ -v
+```
+
+65 tests covering the scoring engine, GitHub query builder, and config validation — all run without hitting any external API.
+
 ## License
 
 MIT
