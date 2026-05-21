@@ -51,7 +51,7 @@ User Input → GitHub Search → AI Analysis → Scoring → Rich Output
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/github-issue-analyzer.git
+   git clone https://github.com/AlonNaor22/github-issue-analyzer.git
    cd github-issue-analyzer
    ```
 
@@ -81,6 +81,30 @@ User Input → GitHub Search → AI Analysis → Scoring → Rich Output
 **Anthropic API Key** (required):
 1. Sign up at [console.anthropic.com](https://console.anthropic.com/)
 2. Create a new API key
+
+## Docker
+
+### Build
+
+```bash
+docker compose build
+```
+
+### Run (interactive mode)
+
+```bash
+docker compose run --rm analyzer python main.py find
+```
+
+### Run (non-interactive, one-liner)
+
+```bash
+docker compose run --rm analyzer python main.py find --topic ai --language python --skill beginner --time half_day --no-interactive
+```
+
+> **Note:** Your `.env` file must exist with API keys before running. See the [Getting API Keys](#getting-api-keys) section above.
+
+Cache persistence: the `.cache` folder is mounted as a Docker volume (`./cache:/app/.cache`), so cached results survive container restarts.
 
 ## Usage
 
