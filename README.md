@@ -1,3 +1,5 @@
+[![CI](https://github.com/AlonNaor22/github-issue-analyzer/actions/workflows/ci.yml/badge.svg)](https://github.com/AlonNaor22/github-issue-analyzer/actions/workflows/ci.yml)
+
 # GitHub Issue Analyzer
 
 An AI-powered CLI tool that helps developers find open-source contribution opportunities matching their interests, skill level, and available time.
